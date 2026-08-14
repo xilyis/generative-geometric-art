@@ -1,9 +1,9 @@
-# SacredPatterns_AI.py
-# -------------------------------------------
-# Part B: AI interaction with Sacred Patterns
-# Face = pulse outer layers
-# Hand = control rotation direction
-# Spacebar = manual pulse (optional)
+"""
+Generative Geometric Art with Interactive AI
+
+Gesture-controlled geometric pattern rendering using MediaPipe computer vision.
+Extends the generator with real-time hand and face tracking.
+"""
 
 import cv2
 import mediapipe as mp
