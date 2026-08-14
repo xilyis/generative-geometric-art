@@ -5,25 +5,50 @@ Gesture-controlled geometric pattern rendering using MediaPipe computer vision.
 Extends the generator with real-time hand and face tracking.
 """
 
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+CONFIG = {
+    # Pattern parameters
+    "primary_sides": 9,
+    "segment_length": 60,
+    "repeats": 18,
+    "pen_size": 2,
+
+    # Layer 1 (hexagonal)
+    "layer1_sides": 6,
+    "layer1_repeats": 12,
+    "layer1_scale": 1.0,
+
+    # Layer 2 (enneagonal)
+    "layer2_sides": 9,
+    "layer2_repeats": 18,
+    "layer2_scale": 1.5,
+
+    # Colors
+    "background": "black",
+    "pattern_color": "white",
+
+    # Detection thresholds
+    "hand_motion_threshold": 5,
+    "smile_bbox_width": 0.25,
+    "pulse_min": 0.8,
+    "pulse_max": 1.2,
+    "pulse_increment": 0.02,
+    "face_rotation_speed": 1,
+    "hand_rotation_speed": 5,
+
+    # MediaPipe confidence
+    "min_detection_confidence": 0.5,
+    "min_tracking_confidence": 0.5,
+}
+
 import cv2
 import mediapipe as mp
 import turtle
 import math
 
-# === Pattern Setup ===
-SIDES, SIZE, REPEATS, PENSIZE = 9, 60, 18, 2
-L1_SIDES, L1_REPEATS, L1_SCALE = 6, 12, 1
-L2_SIDES, L2_REPEATS, L2_SCALE = 9, 18, 1.5
-BGCOLOR = "black"
-
-screen = turtle.Screen()
-screen.bgcolor(BGCOLOR)
-screen.title("Sacred Patterns — AI Demo")
-screen.tracer(0)
-
-pen = turtle.Turtle(visible=False)
-pen.speed(0)
-pen.pensize(PENSIZE)
 
 # --- helpers ---
 def draw_polygon(t, sides, size):
