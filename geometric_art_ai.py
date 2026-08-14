@@ -44,117 +44,243 @@ CONFIG = {
     "min_tracking_confidence": 0.5,
 }
 
+# =============================================================================
+# IMPORTS & SETUP
+# =============================================================================
+
 import cv2
 import mediapipe as mp
 import turtle
-import math
+import sys
+from typing import Optional, Tuple, Dict, Any
 
 
-# --- helpers ---
-def draw_polygon(t, sides, size):
-    angle = 360 / sides
-    for _ in range(sides):
-        t.forward(size)
-        t.right(angle)
+class GeometricArtAI:
+    """
+    AI-enhanced geometric pattern renderer with gesture-controlled interaction.
 
-def draw_rotated_pattern(t, sides, size, repeats, color="white"):
-    t.pencolor(color)
-    for _ in range(repeats):
-        draw_polygon(t, sides, size)
-        t.right(360 / repeats)
+    Attributes:
+        config: Runtime configuration dictionary
+        rotation: Current canvas rotation angle
+        pulse_scale: Dynamic scaling factor for pulsing effect
+        manual_pulse: Spacebar override state
+    """
 
-def draw_pattern(rotation=0, pulse_scale=1.0):
-    pen.clear()
-    pen.setheading(rotation)
+    def __init__(self, config: Dict[str, Any]) -> None:
+        self.config = config
+        self.rotation: float = 0.0
+        self.pulse_scale: float = 1.0
+        self.pulse_direction: int = 1
+        self.manual_pulse: bool = False
+        self.prev_hand_pos: Optional[Tuple[int, int]] = None
 
-    draw_rotated_pattern(pen, SIDES, SIZE, REPEATS)
-    draw_rotated_pattern(pen, L1_SIDES, SIZE * L1_SCALE * pulse_scale, L1_REPEATS)
-    draw_rotated_pattern(pen, L2_SIDES, SIZE * L2_SCALE * pulse_scale, L2_REPEATS)
+        self._setup_screen()
+        self._setup_media_pipe()
+        self._setup_key_bindings()
 
-    screen.update()
+    def _setup_screen(self) -> None:
+        """Initialize Turtle graphics display."""
+        self.screen = turtle.Screen()
+        self.screen.bgcolor(self.config["background"])
+        self.screen.title("Generative Geometric Art — AI Demo")
+        self.screen.tracer(0)
 
-# === AI Setup ===
-mp_hands = mp.solutions.hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-mp_face = mp.solutions.face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
-cap = cv2.VideoCapture(0)
+        self.pen = turtle.Turtle(visible=False)
+        self.pen.speed(0)
+        self.pen.pensize(self.config["pen_size"])
 
-rotation = 0
-pulse_dir = 1
-pulse_scale = 1.0
-manual_pulse = False
+    def _setup_media_pipe(self) -> None:
+        """Initialize MediaPipe hand and face detection models."""
+        try:
+            self.mp_hands = mp.solutions.hands.Hands(
+                min_detection_confidence=self.config["min_detection_confidence"],
+                min_tracking_confidence=self.config["min_tracking_confidence"]
+            )
+            self.mp_face = mp.solutions.face_detection.FaceDetection(
+                model_selection=0,
+                min_detection_confidence=self.config["min_detection_confidence"]
+            )
+            self.cap = cv2.VideoCapture(0)
+            if not self.cap.isOpened():
+                raise RuntimeError("Webcam unavailable. Check device permissions.")
+        except Exception as e:
+            print(f"[ERROR] Computer vision initialization failed: {e}")
+            sys.exit(1)
 
-# Hand tracking
-prev_x, prev_y = None, None
-hand_rotation_speed = 0
+    def _setup_key_bindings(self) -> None:
+        """Register keyboard shortcuts."""
+        self.screen.listen()
+        self.screen.onkeypress(self._toggle_manual_pulse, "space")
+        self.screen.onkeypress(self._quit_app, "q")
 
-# Spacebar handler
-def toggle_pulse():
-    global manual_pulse
-    manual_pulse = not manual_pulse
+    # -------------------------------------------------------------------------
+    # DRAWING FUNCTIONS
+    # -------------------------------------------------------------------------
 
-screen.listen()
-screen.onkeypress(toggle_pulse, "space")
+    def draw_polygon(self, t: turtle.Turtle, sides: int, size: float) -> None:
+        """Render a regular polygon."""
+        angle = 360 / sides
+        for _ in range(sides):
+            t.forward(size)
+            t.right(angle)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    def draw_rotated_pattern(
+        self,
+        t: turtle.Turtle,
+        sides: int,
+        size: float,
+        repeats: int,
+        color: str = "white"
+    ) -> None:
+        """Render a radially symmetric polygon pattern."""
+        t.pencolor(color)
+        for _ in range(repeats):
+            self.draw_polygon(t, sides, size)
+            t.right(360 / repeats)
 
-    # Detect hands
-    hand_results = mp_hands.process(rgb)
-    if hand_results.multi_hand_landmarks:
+    def render_frame(self) -> None:
+        """Clear and redraw the complete geometric pattern."""
+        self.pen.clear()
+        self.pen.setheading(int(self.rotation))
+
+        # Primary layer
+        self.draw_rotated_pattern(
+            self.pen,
+            self.config["primary_sides"],
+            self.config["segment_length"],
+            self.config["repeats"]
+        )
+
+        # Layer 1
+        size_l1 = self.config["segment_length"] * self.config["layer1_scale"] * self.pulse_scale
+        self.draw_rotated_pattern(
+            self.pen,
+            self.config["layer1_sides"],
+            size_l1,
+            self.config["layer1_repeats"]
+        )
+
+        # Layer 2
+        size_l2 = self.config["segment_length"] * self.config["layer2_scale"] * self.pulse_scale
+        self.draw_rotated_pattern(
+            self.pen,
+            self.config["layer2_sides"],
+            size_l2,
+            self.config["layer2_repeats"]
+        )
+
+        self.screen.update()
+
+    # -------------------------------------------------------------------------
+    # INTERACTION HANDLERS
+    # -------------------------------------------------------------------------
+
+    def _toggle_manual_pulse(self) -> None:
+        """Toggle spacebar pulse override."""
+        self.manual_pulse = not self.manual_pulse
+
+    def _quit_app(self) -> None:
+        """Graceful application termination."""
+        self.running = False
+
+    def _process_hands(self, frame: Any) -> Optional[float]:
+        """Detect hand position and return rotation delta."""
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.mp_hands.process(rgb_frame)
+
+        if not results.multi_hand_landmarks:
+            self.prev_hand_pos = None
+            return None
+
         h, w, _ = frame.shape
-        hand = hand_results.multi_hand_landmarks[0]
-        # Use tip of index finger
+        hand = results.multi_hand_landmarks[0]
         x = int(hand.landmark[8].x * w)
         y = int(hand.landmark[8].y * h)
 
-        if prev_x is not None and prev_y is not None:
-            dx = x - prev_x
-            # Simple heuristic: horizontal motion = rotation control
-            if dx > 5:
-                hand_rotation_speed = 5
-            elif dx < -5:
-                hand_rotation_speed = -5
-            else:
-                hand_rotation_speed = 0
-            rotation += hand_rotation_speed
+        if self.prev_hand_pos is not None:
+            dx = x - self.prev_hand_pos[0]
+            if dx > self.config["hand_motion_threshold"]:
+                return self.config["hand_rotation_speed"]
+            elif dx < -self.config["hand_motion_threshold"]:
+                return -self.config["hand_rotation_speed"]
 
-        prev_x, prev_y = x, y
-    else:
-        prev_x, prev_y = None, None
+        self.prev_hand_pos = (x, y)
+        return None
 
-        # Detect face
-    face_results = mp_face.process(rgb)
-    smile_detected = False
+    def _process_face(self, frame: Any) -> Tuple[bool, bool]:
+        """Detect face presence and approximate smile. Returns (face_present, smile)."""
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.mp_face.process(rgb_frame)
 
-    if face_results.detections:
-        # Pattern rotates slowly when a face is present
-        rotation += 1
+        if not results.detections:
+            return False, False
 
-        # Check "smile" proxy: large bounding box width
-        for detection in face_results.detections:
+        for detection in results.detections:
             box = detection.location_data.relative_bounding_box
-            if box.width > 0.25:  # heuristic: smiling
-                smile_detected = True
-                break
+            if box.width > self.config["smile_bbox_width"]:
+                return True, True
+        return True, False
 
-    # Apply pulse if face is detected OR manual override
-    if smile_detected or manual_pulse:
-        pulse_scale += 0.02 * pulse_dir
-        if pulse_scale > 1.2 or pulse_scale < 0.8:
-            pulse_dir *= -1
-    else:
-        pulse_scale = 1.0  # reset when neither smile nor manual pulse
+    def _update_pulse(self, smile_detected: bool) -> None:
+        """Apply pulse animation if triggered."""
+        if smile_detected or self.manual_pulse:
+            self.pulse_scale += self.config["pulse_increment"] * self.pulse_direction
+            if self.pulse_scale >= self.config["pulse_max"] or self.pulse_scale <= self.config["pulse_min"]:
+                self.pulse_direction *= -1
+        else:
+            self.pulse_scale = 1.0
 
-    # Draw updated pattern
-    draw_pattern(rotation, pulse_scale)
+    # -------------------------------------------------------------------------
+    # MAIN LOOP
+    # -------------------------------------------------------------------------
 
-    # Show webcam feed
-    cv2.imshow("Webcam", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    def run(self) -> None:
+        """Main rendering and interaction loop."""
+        self.running = True
+
+        try:
+            while self.running:
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+
+                # Process AI inputs
+                hand_delta = self._process_hands(frame)
+                if hand_delta is not None:
+                    self.rotation += hand_delta
+                else:
+                    face_present, smile = self._process_face(frame)
+                    if face_present:
+                        self.rotation += self.config["face_rotation_speed"]
+                    self._update_pulse(smile)
+
+                # Render
+                self.render_frame()
+                cv2.imshow("Webcam", frame)
+
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+
+        finally:
+            self._cleanup()
+
+    def _cleanup(self) -> None:
+        """Release resources on exit."""
+        self.cap.release()
+        cv2.destroyAllWindows()
+        if hasattr(self, "mp_hands"):
+            self.mp_hands.close()
+        if hasattr(self, "mp_face"):
+            self.mp_face.close()
+
+
+# =============================================================================
+# ENTRY POINT
+# =============================================================================
+
+if __name__ == "__main__":
+    app = GeometricArtAI(CONFIG)
+    app.run()
 
 cap.release()
 cv2.destroyAllWindows()
