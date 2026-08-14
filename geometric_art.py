@@ -9,31 +9,41 @@ symmetry, scaling, and color parameters.
 import turtle
 import math
 
-# === MAIN SHAPE (center) ===
-SIDES       = 9
-SIZE        = 60
-REPEATS     = 18
-PENSIZE     = 2
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
-# === OUTER LAYER 1 ===
-L1_SIDES    = 6
-L1_REPEATS  = 12
-L1_SCALE    = 1
-L1_PALETTE  = ["#FFFFFF", "#FFFFFF"]
+CONFIG = {
+    # Primary pattern (center)
+    "primary_sides": 9,
+    "segment_length": 60,
+    "repeats": 18,
+    "pen_size": 2,
+    "primary_palette": ["#FFFFFF"],
 
-# === OUTER LAYER 2 ===
-L2_SIDES    = 9
-L2_REPEATS  = 18
-L2_SCALE    = 1.5
-L2_PALETTE  = ["#FFFFFF", "#FFFFFF"]
+    # Outer layer 1
+    "layer1_sides": 6,
+    "layer1_repeats": 12,
+    "layer1_scale": 1.0,
+    "layer1_palette": ["#FFFFFF", "#FFFFFF"],
 
-# === OUTER CIRCLE ===
-DRAW_OUTER_CIRCLE = True
-CIRCLE_PADDING    = 0
-CIRCLE_COLOR      = "#FFFFFF"
+    # Outer layer 2
+    "layer2_sides": 9,
+    "layer2_repeats": 18,
+    "layer2_scale": 1.5,
+    "layer2_palette": ["#FFFFFF", "#FFFFFF"],
 
-# === BACKGROUND ===
-BGCOLOR = "black"
+    # Outer boundary circle
+    "draw_outer_circle": True,
+    "circle_padding": 0,
+    "circle_color": "#FFFFFF",
+
+    # Background
+    "background_color": "black",
+
+    # Window settings
+    "window_title": "Generative Geometric Art — Part A"
+}
 
 # --- setup ---
 screen = turtle.Screen()
