@@ -1,8 +1,10 @@
-# SacredPatterns.py
-# -------------------------------------------
-# Sacred Patterns (Part A): Generative Geometry with Python
-# Fixed: outer circle adapts to actual drawn shape
-# Run with: python SacredPatterns.py
+"""
+Generative Geometric Art
+
+Deterministic geometric pattern generator using Python Turtle graphics.
+Renders multi-layered concentric polygonal compositions with configurable
+symmetry, scaling, and color parameters.
+"""
 
 import turtle
 import math
@@ -36,7 +38,7 @@ BGCOLOR = "black"
 # --- setup ---
 screen = turtle.Screen()
 screen.bgcolor(BGCOLOR)
-screen.title("Sacred Patterns — Part A")
+screen.title("Generative Geometric Art")
 screen.tracer()    # instant render
 
 pen = turtle.Turtle(visible=False)
